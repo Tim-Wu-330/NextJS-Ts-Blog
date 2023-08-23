@@ -37,6 +37,7 @@ const Admin: NextPage<Props> = () => {
     // fetching latest users
     axios("/api/user")
       .then(({ data }) => {
+        console.log(data);
         setLatestUsers(data.users);
       })
       .catch((err) => console.log(err));

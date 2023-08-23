@@ -13,7 +13,7 @@ const handler: NextApiHandler = (req, res) => {
   }
 };
 
-const getLatestUsers: NextApiHandler = async (req, res) => {
+const getLatestUsers: NextApiHandler = async(req, res) => {
   const admin = await isAdmin(req, res);
   if (!admin) return res.status(403).json({ error: "Unauthorized request!" });
 

@@ -5,7 +5,7 @@ interface Props {}
 
 const MyNextCoolPageID: NextPage<Props> = () => {
   const router = useRouter();
-  console.log(router);
+  // console.log(router);
   return <div>MyNextCoolPageID</div>;
 };
 

@@ -155,7 +155,6 @@ export const getStaticProps: GetStaticProps<
           thumbnail: thumbnail?.url || "",
           createdAt: createdAt.toString(),
           author: JSON.stringify(postAuthor),
-          // author: postAuthor,
         },
       },
       revalidate: 60,

@@ -28,6 +28,16 @@ const Users: NextPage<Props> = () => {
       .catch((err) => console.log(err));
   };
 
+  // const getLatestUsers: NextApiHandler = async(req, res) => {
+  //   const admin = await isAdmin(req, res);
+  //   if (!admin) return res.status(403).json({ error: "Unauthorized request!" });
+  
+  //   const { pageNo = "0", limit = "5" } = req.query as {
+  //     pageNo: string;
+  //     limit: string;
+  //   };
+  
+
   const handleOnNextClick = () => {
     if (reachedToEnd) return;
     currentPageNo += 1;
