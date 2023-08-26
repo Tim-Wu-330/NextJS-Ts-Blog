@@ -34,7 +34,7 @@ const Share: FC<Props> = ({ url, title, quote }): JSX.Element => {
         <WhatsappIcon round size={32} />
       </WhatsappShareButton>
 
-      <RedditShareButton url={url} quote={quote} title={title}>
+      <RedditShareButton url={url} title={title}>
         <RedditIcon round size={32} />
       </RedditShareButton>
     </div>
