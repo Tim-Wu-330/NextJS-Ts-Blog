@@ -24,7 +24,7 @@ import Link from "next/link";
 
 type Props = InferGetStaticPropsType<typeof getStaticProps>;
 
-const host = "http://localhost:3000";
+const host = "https://wu-devblog.vercel.app/";
 
 const SinglePost: NextPage<Props> = ({ post }) => {
   const [likes, setLikes] = useState({ likedByOwner: false, count: 0 });
