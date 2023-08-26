@@ -18,40 +18,51 @@ import axios from "axios";
 import { signIn } from "next-auth/react";
 import User from "../models/User";
 import AuthorInfo from "../components/common/AuthorInfo";
-
+import Share from "../components/common/Share";
+import { Schema } from "mongoose";
+import Link from "next/link";
 
 type Props = InferGetStaticPropsType<typeof getStaticProps>;
 
-const SinglePost: NextPage<Props> = ({ post }) => {
-  const [likes, setLikes] = useState({ likedByOwner: false, count: 0})
-  const { id, title, content, tags, meta, slug, thumbnail, createdAt, author } = post;
+const host = "http://localhost:3000";
 
-  const user = useAuth()
+const SinglePost: NextPage<Props> = ({ post }) => {
+  const [likes, setLikes] = useState({ likedByOwner: false, count: 0 });
+  const { id, title, content, tags, meta, slug, thumbnail, createdAt, author, relatedPosts } =
+    post;
+  const [liking, setLiking] = useState(false);
+  console.log(relatedPosts)
+  const user = useAuth();
 
   const getLikeLabel = useCallback((): string => {
-    const {likedByOwner, count} = likes;
+    const { likedByOwner, count } = likes;
     if (likedByOwner && count === 1) return "You liked this post.";
-    if (likedByOwner) return `You and ${count - 1} other likes this post.`
-    
-    if (count === 0) return 'Like post.'
+    if (likedByOwner) return `You and ${count - 1} other likes this post.`;
 
-    return count + ' people liked this post.'
+    if (count === 0) return "Like post.";
 
+    return count + " people liked this post.";
   }, [likes]);
 
   const handleOnLikeClick = async () => {
-  try { 
-    if(!user) return await signIn('github');
-    const {data} = await axios.post(`/api/posts/update-like?postId=${id}`)
-    setLikes({likedByOwner: !likes.likedByOwner, count: data.newLikes})
-  } catch (error) {
-      console.log(error)
+    setLiking(true);
+    try {
+      if (!user) return await signIn("github");
+      const { data } = await axios.post(`/api/posts/update-like?postId=${id}`);
+      setLikes({ likedByOwner: !likes.likedByOwner, count: data.newLikes });
+    } catch (error) {
+      console.log(error);
     }
-  }
+    setLiking(false);
+  };
 
   useEffect(() => {
-    axios(`/api/posts/like-status?postId=${id}`).then(({data}) => setLikes({likedByOwner: data.likedByOwner, count: data.likesCount})).catch((err) => console.log(err))
-  }, [])
+    axios(`/api/posts/like-status?postId=${id}`)
+      .then(({ data }) =>
+        setLikes({ likedByOwner: data.likedByOwner, count: data.likesCount })
+      )
+      .catch((err) => console.log(err));
+  }, []);
 
   return (
     <DefaultLayout title={title} desc={meta}>
@@ -73,15 +84,45 @@ const SinglePost: NextPage<Props> = ({ post }) => {
           <span>{dateFormat(createdAt, "d-mmm-yyyy")}</span>
         </div>
 
+        <div className="py-5 transition dark:bg-primary-dark bg-primary sticky top-0 z-50">
+          <Share url={host + "/" + slug} title={""} quote={""} />
+        </div>
+
         <div className="prose prose-lg dark:prose-invert max-w-full mx-auto">
           {parse(content)}
         </div>
-          <div className="py-10">
-            <LikeHeart liked={likes.likedByOwner} label={getLikeLabel()} onClick={handleOnLikeClick}/>
-          </div>
-          <div className="pt-10">
-            <AuthorInfo profile={JSON.parse(author)}/>
-          </div>
+
+        <div className="py-10">
+          <LikeHeart
+            liked={likes.likedByOwner}
+            label={getLikeLabel()}
+            onClick={!liking ? handleOnLikeClick : undefined}
+            busy={liking}
+          />
+        </div>
+
+        <div className="pt-10">
+          <AuthorInfo profile={JSON.parse(author)} />
+        </div>
+
+        <div className="pt-5">
+          <h3 className="text-xl font-semibold bg-secondary-dark text-primary p-2 mb-4">
+            Related Posts:
+          </h3>
+        </div>
+
+        <div className="flex flex-col space-y-4">
+          {relatedPosts.map((p) => { 
+            return (
+              <Link href={p.slug}>
+                <a className="font-semibold text-primary-dark dark:text-primary hover:underline">
+                  {p.title}
+                </a>
+              </Link>
+            )
+            })}
+        </div>
+
         <Comments belongsTo={id} />
       </div>
     </DefaultLayout>
@@ -118,6 +159,11 @@ interface StaticPropsResponse {
     thumbnail: string;
     createdAt: string;
     author: string;
+    relatedPosts: {
+        id: string,
+        title: string,
+        slug: string,
+      }[];
   };
 }
 
@@ -127,21 +173,49 @@ export const getStaticProps: GetStaticProps<
 > = async ({ params }) => {
   try {
     await dbConnect();
-    const post = await Post.findOne({ slug: params?.slug }).populate('author');
+    const post = await Post.findOne({ slug: params?.slug }).populate("author");
     if (!post) return { notFound: true };
 
-    const { _id, title, content, meta, slug, tags, author, thumbnail, createdAt } =
-      post;
-    const admin = await User.findOne({ role: "admin"});
-    const authorInfo = (author || admin) as any
+    //fetching related posts according to tags
+    const posts = await Post.find({
+      tags: { $in: [...post.tags] },
+      _id: { $ne: post._id },
+    })
+      .sort({ createdAt: "desc" })
+      .limit(5)
+      .select("slug title");
 
-    const postAuthor = {   
+    const relatedPosts = posts.map((p) => {
+      return {
+        id: p._id.toString(),
+        title: p.title,
+        slug: p.slug,
+      };
+    });
+
+    const {
+      _id,
+      title,
+      content,
+      meta,
+      slug,
+      tags,
+      author,
+      thumbnail,
+      createdAt,
+    } = post;
+    const admin = await User.findOne({ role: "admin" });
+    const authorInfo = (author || admin) as any;
+
+    const postAuthor = {
       id: authorInfo._id,
       name: authorInfo.name,
       avatar: authorInfo.avatar,
-      message: `This post is written by ${authorInfo.name}. ${authorInfo.name.split(' ')[0]} is an full stack JavaScript developer. You can find him on linkedin`
-    }
-    console.log(postAuthor)
+      message: `This post is written by ${authorInfo.name}. ${
+        authorInfo.name.split(" ")[0]
+      } is an full stack JavaScript developer. You can find him on linkedin`,
+    };
+    // console.log(postAuthor)
 
     return {
       props: {
@@ -155,6 +229,7 @@ export const getStaticProps: GetStaticProps<
           thumbnail: thumbnail?.url || "",
           createdAt: createdAt.toString(),
           author: JSON.stringify(postAuthor),
+          relatedPosts
         },
       },
       revalidate: 60,

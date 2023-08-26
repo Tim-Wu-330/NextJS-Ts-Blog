@@ -21,6 +21,8 @@ const Comments: FC<Props> = ({ belongsTo, fetchAll }): JSX.Element => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [reachedToEnd, setReachedToEnd] = useState(false);
   const [busyCommentLike, setBusyCommentLike] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [selectedComment, setSelectedComment] = useState<CommentResponse | null>(null);
   const [commentToDelete, setCommentToDelete] =
     useState<CommentResponse | null>(null);
 
@@ -117,12 +119,17 @@ const Comments: FC<Props> = ({ belongsTo, fetchAll }): JSX.Element => {
   };
 
   const handleNewCommentSubmit = async (content: string) => {
-    const newComment = await axios
+    setSubmitting(true);
+    try {const newComment = await axios
       .post("/api/comment", { content, belongsTo })
       .then(({ data }) => data.comment)
       .catch((err) => console.log(err));
-    if (newComment && comments) setComments([...comments, newComment]);
-    else setComments([newComment]);
+      if (newComment && comments) setComments([...comments, newComment]);
+      else setComments([newComment]);
+      } catch (error) {
+        console.log(error);
+      }
+      setSubmitting(false);
   };
 
   const handleReplySubmit = (replyComment: {
@@ -169,15 +176,18 @@ const Comments: FC<Props> = ({ belongsTo, fetchAll }): JSX.Element => {
 
   const handleOnLikeClick = (comment: CommentResponse) => {
     setBusyCommentLike(true);
+    setSelectedComment(comment);
     axios
       .post("/api/comment/update-like", { commentId: comment.id })
       .then(({ data }) => {
         updateLikedComments(data.comment);
         setBusyCommentLike(false);
+        setSelectedComment(null);
       })
       .catch((err) => {
         console.log(err);
         setBusyCommentLike(false);
+        setSelectedComment(null);
       });
   };
 
@@ -234,6 +244,7 @@ const Comments: FC<Props> = ({ belongsTo, fetchAll }): JSX.Element => {
           visible={!fetchAll}
           onSubmit={handleNewCommentSubmit}
           title="Add comment"
+          busy={submitting}
         />
       ) : (
         <div className="flex flex-col items-end space-y-2">
@@ -259,7 +270,7 @@ const Comments: FC<Props> = ({ belongsTo, fetchAll }): JSX.Element => {
               }
               onDeleteClick={() => handleOnDeleteClick(comment)}
               onLikeClick={() => handleOnLikeClick(comment)}
-              busy={busyCommentLike}
+              busy={selectedComment?.id === comment.id && busyCommentLike}
             />
 
             {replies?.length ? (
@@ -279,7 +290,7 @@ const Comments: FC<Props> = ({ belongsTo, fetchAll }): JSX.Element => {
                       }
                       onDeleteClick={() => handleOnDeleteClick(reply)}
                       onLikeClick={() => handleOnLikeClick(reply)}
-                      busy={busyCommentLike}
+                      busy={selectedComment?.id === reply.id && busyCommentLike}
                     />
                   );
                 })}
